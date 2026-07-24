@@ -1,6 +1,6 @@
-# LUT Batch Preview
+# LUT Viewer
 
-批量预览 LUT 套用效果的工具。
+支持批量预览 LUT 在照片上的套用效果，是个Lut效果的批量预览工具。
 
 ## 能做什么？
 
@@ -9,10 +9,10 @@
 
 ## 使用方法（需要 Python）
 
-cd到准备存放这个项目的路径下（如Mac用户 /Users/{你的用户名}/Downloads），然后执行：
+先cd到准备存放这个项目的路径下（如Mac用户 /Users/{你的用户名}/Downloads），然后执行：
 
 ```bash
-git clone 
+git clone https://github.com/Velkan/lut_viewer.git
 cd lut_viewer
 python3 server.py
 ```
@@ -22,5 +22,5 @@ python3 server.py
 
 ## 系统要求
 
-- Python 3（方式一需要）
+- Python 3
 - 现代浏览器（Chrome / Firefox / Edge）
