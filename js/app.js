@@ -73,6 +73,7 @@
     maxPhotos: 5,
     previewWidth: 400,
     favorites: [],
+    showOriginal: true,
   };
 
   
@@ -203,18 +204,29 @@ async function addPhotos(files) {
     /* page-level only, no persistence */
   }
 
-  function toggleFavorite(lutTitle, lutName, lutPath) {
+  async function toggleFavorite(lutTitle, lutName, lutPath) {
     const idx = state.favorites.findIndex(f => f.title === lutTitle);
     if (idx >= 0) {
+      const removed = state.favorites[idx];
+      if (removed.path) {
+        try {
+          await fetch('/api/delete-lut', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: removed.path }),
+          });
+        } catch (e) {}
+      }
       state.favorites.splice(idx, 1);
     } else {
-      // Upload only when favoriting (not during loadLuts)
       var path = lutPath;
       var lut = state.luts.find(function (l) { return l.title === lutTitle; });
       if (lut && lut._fileText) {
         var blob = new Blob([lut._fileText], { type: 'text/plain' });
         blob.name = lut.title;
-        LutUploadAPI.save(blob).then(function (svrPath) { path = svrPath; }).catch(function () {});
+        try {
+          path = await LutUploadAPI.save(blob);
+        } catch (e) {}
       }
       state.favorites.push({ title: lutTitle, name: lutName, path: path });
     }
@@ -223,7 +235,7 @@ async function addPhotos(files) {
     document.querySelectorAll('.star-btn[data-lut]').forEach(el => {
       if (el.dataset.lut === lutTitle) {
         el.classList.toggle('starred', idx < 0);
-        el.textContent = idx < 0 ? '★' : '☆';
+        el.textContent = idx < 0 ? '\u2605' : '\u2606';
       }
     });
   }
@@ -453,12 +465,25 @@ async function addPhotos(files) {
     state.photos.forEach(function (_, i) {
       const c = document.createElement('div');
       c.className = 'grid-cell name-cell';
-      c.style.cssText = 'flex:1;justify-content:center;width:auto;min-width:0';
-      c.textContent = '参考 ' + (i + 1);
+      if (state.showOriginal) {
+        c.style.cssText = 'flex:1;width:auto;min-width:0;padding:0;display:flex;gap:1px;background:var(--border);border-radius:2px;overflow:hidden';
+        const ol = document.createElement('div');
+        ol.style.cssText = 'flex:1;text-align:center;padding:3px 0;font-size:10px;color:var(--text-dim);background:var(--surface)';
+        ol.textContent = '原图';
+        const rl = document.createElement('div');
+        rl.style.cssText = 'flex:1;text-align:center;padding:3px 0;font-size:10px;color:var(--text-dim);background:var(--surface)';
+        rl.textContent = 'LUT';
+        c.appendChild(ol);
+        c.appendChild(rl);
+      } else {
+        c.style.cssText = 'flex:1;justify-content:center;width:auto;min-width:0';
+        c.textContent = 'LUT';
+      }
       gridHeader.appendChild(c);
     });
   }
-
+  // Row factory
+  // ====================================================================
   function createRow(idx) {
     const row = document.createElement('div');
     row.className = 'grid-body-row grid-row';
@@ -487,15 +512,34 @@ async function addPhotos(files) {
     for (let p = 0; p < state.photos.length; p++) {
       const cell = document.createElement('div');
       cell.className = 'grid-cell preview-cell';
-      const ph = document.createElement('div');
-      ph.className = 'cell-placeholder';
-      cell.appendChild(ph);
+      if (state.showOriginal) {
+        // Two sub-cells: original + LUT-applied
+        const orig = document.createElement('div');
+        orig.className = 'preview-sub preview-original';
+        const origImg = document.createElement('img');
+        origImg.src = state.photos[p].img.src;
+        origImg.alt = '原图';
+        orig.appendChild(origImg);
+        cell.appendChild(orig);
+        // Right: LUT-applied placeholder
+        const applied = document.createElement('div');
+        applied.className = 'preview-sub preview-applied';
+        const ph = document.createElement('div');
+        ph.className = 'cell-placeholder';
+        applied.appendChild(ph);
+        cell.appendChild(applied);
+      } else {
+        // Single cell: just LUT-applied result
+        const ph = document.createElement('div');
+        ph.className = 'cell-placeholder';
+        cell.appendChild(ph);
+      }
       row.appendChild(cell);
     }
     return row;
   }
 
-  // ====================================================================
+// ====================================================================
   // Render queue
   // ====================================================================
   async function drainQueue() {
@@ -515,19 +559,29 @@ async function addPhotos(files) {
             canvases.push(proc.renderPreview(state.photos[p].img, lut.data, lut.size, state.previewWidth));
           } catch (e) { canvases.push(null); }
         }
-        const row = gridBody.querySelector('[data-index="' + idx + '"]');
+                const row = gridBody.querySelector('[data-index="' + idx + '"]');
         if (row) {
           const cells = row.querySelectorAll('.preview-cell');
           canvases.forEach(function (cv, ci) {
             if (cells[ci] && cv) {
-              const img = document.createElement('img');
-              img.src = cv.toDataURL();
-              cells[ci].innerHTML = '';
-              cells[ci].appendChild(img);
+              if (state.showOriginal) {
+                const appliedDiv = cells[ci].querySelector('.preview-applied');
+                if (appliedDiv) {
+                  const img = document.createElement('img');
+                  img.src = cv.toDataURL();
+                  appliedDiv.innerHTML = '';
+                  appliedDiv.appendChild(img);
+                }
+              } else {
+                cells[ci].innerHTML = '';
+                const img = document.createElement('img');
+                img.src = cv.toDataURL();
+                cells[ci].appendChild(img);
+              }
             }
           });
         }
-        const done = state.renderedRows.size;
+const done = state.renderedRows.size;
         progressFill.style.width = Math.round((done / state.totalLuts) * 100) + '%';
         progressText.textContent = done + ' / ' + state.totalLuts;
         setStatus(done + ' / ' + state.totalLuts);
@@ -622,7 +676,14 @@ async function addPhotos(files) {
       if (e.target.files.length) { loadLuts(e.target.files); e.target.value = ''; }
     });
     $('btn-clear').addEventListener('click', clearAll);
-
+    $('btn-toggle-orig').addEventListener('click', function () {
+      state.showOriginal = !state.showOriginal;
+      this.classList.toggle('btn-active', state.showOriginal);
+      this.innerHTML = state.showOriginal
+        ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 已展示原图'
+        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 未展示原图'
+      rebuildGrid();
+    });
 
     renderFavorites();
     await loadPersistedPhotos();

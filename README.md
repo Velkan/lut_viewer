@@ -9,6 +9,7 @@
 
 ## 使用方法（需要 Python）
 
+### Lut批量预览
 先cd到准备存放这个项目的路径下（如Mac用户 /Users/{你的用户名}/Downloads），然后执行：
 
 ```bash
@@ -19,6 +20,19 @@ python3 server.py
 
 执行后浏览器会自动访问 http://127.0.0.1:8723，也可以手动打开浏览器直接访问这个链接
 
+### Lut结构调整
+
+松下的Lumix Lab app中对于部分机型（比如S9）只支持33-Grid的cube文件，然而找到的Lut不一定都是33-Grid。所以做了一个转换工具，对于指定目录下的的全部Lut文件，批量扫描并转成33-Grid的结构。（已经是33-Grid的不会受影响，可以闭眼扫描文件夹内的全部Lut）
+
+*使用方法*：
+
+也要cd到 lut_viewer 路径下，然后执行下方命令即可：
+
+```bash
+python3 resample_lut.py -i 你存放lut的目录，例如 /Users/{你的用户名}/Downloads/luts
+```
+
+转好的lut文件会保存在 lut_viewer/output_luts 目录下。
 
 ## 系统要求
 

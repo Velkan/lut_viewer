@@ -120,8 +120,24 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._send_json({'ok': True})
             return
 
-        self.send_error(404)
+        if parsed.path == '/api/delete-lut':
+            try:
+                body = json.loads(self._read_body())
+                rel_path = body.get('path', '')
+                # Strip leading / for safety
+                rel_path = rel_path.lstrip('/')
+                # Resolve relative to server directory and ensure it's in lut-uploads
+                full = (DIR / rel_path).resolve()
+                lut_dir = LUT_UPLOAD_DIR.resolve()
+                if str(full).startswith(str(lut_dir)) and full.exists() and full.is_file():
+                    full.unlink()
+                self._send_json({'ok': True})
+                return
+            except Exception as e:
+                self._send_json({'ok': False, 'error': str(e)}, 500)
+                return
 
+        self.send_error(404)
     def do_DELETE(self):
         parsed = urlparse(self.path)
         if parsed.path.startswith('/api/photo/'):
