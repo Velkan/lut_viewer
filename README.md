@@ -31,6 +31,7 @@ python3 server.py
 也要cd到 lut_viewer 路径下，然后执行下方命令即可：
 
 ```bash
+pip3 install colour-science numpy -i https://pypi.tuna.tsinghua.edu.cn/simple
 python3 resample_lut.py -i 你存放lut的目录，例如 /Users/{你的用户名}/Downloads/luts
 ```
 
