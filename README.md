@@ -34,7 +34,7 @@ python3 server.py
 python3 resample_lut.py -i 你存放lut的目录，例如 /Users/{你的用户名}/Downloads/luts
 ```
 
-转好的lut文件会保存在 lut_viewer/output_luts 目录下。
+命令会把目标目录（比如/Users/{你的用户名}/Downloads/luts）下的全部lut文件转成33-Grid，转好的lut文件会保存在 lut_viewer/output_luts 目录下。
 
 ## 系统要求
 
