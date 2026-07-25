@@ -7,7 +7,8 @@
 支持对最多5张照片批量查看Lut套用之后的效果：上传原始照片 -> 批量打开本地的LUT（最多支持999个） -> 查看照片套用Lut之后的效果。
 对于看着合眼缘的Lut可以点下每一行开头的“星标”，被星标的Lut会在画面右上角被列出、同时复制一份到 lut_viewer/lut-uploads/{当天日期}/ 路径下，便于后续直接将挑选好的Lut批量导入相机等下游使用场景。
 
-<img width="2213" height="1322" alt="截屏2026-07-24 21 12 17" src="https://github.com/user-attachments/assets/98efc8e4-9b1c-4afe-9c58-8579b1aecd2f" />
+<img width="3437" height="1319" alt="截屏2026-07-25 15 01 08" src="https://github.com/user-attachments/assets/24851364-e3bc-4904-a2e4-46219e7053bb" />
+
 
 ## 使用方法（需要 Python）
 
