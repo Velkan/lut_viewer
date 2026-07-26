@@ -38,6 +38,13 @@ python3 resample_lut.py -i 你存放lut的目录，例如 /Users/{你的用户�
 
 命令会把目标目录（比如/Users/{你的用户名}/Downloads/luts）下的全部lut文件转成33-Grid，转好的lut文件会保存在 lut_viewer/output_luts 目录下。
 
+## 支持格式
+
+支持JPG和部分RAW格式，已支持的RAW包括：
+Canon (CR2/CR3/CRW)、Nikon (NEF/NRW)、Sony (ARW/SRF/SR2)、Fujifilm (RAF)、Olympus (ORF)、Panasonic (RW2)、Adobe/Leica (DNG)、Pentax (PEF)、Sigma (X3F)、Hasselblad (3FR/FFF)。
+
+目前暂不支持GoPro (GPR)格式。
+
 ## 系统要求
 
 - Python 3

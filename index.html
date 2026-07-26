@@ -25,7 +25,7 @@
       </button>
       <button class="btn" id="btn-toggle-orig" title="切换原图对比">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-        已展示原图
+        未展示原图
       </button>
       <button class="btn" id="btn-clear" title="清空所有">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -34,7 +34,7 @@
     </div>
   </header>
 
-  <input type="file" id="photo-input" accept="image/*" multiple hidden>
+  <input type="file" id="photo-input" accept="image/*,.cr2,.cr3,.crw,.nef,.nrw,.arw,.srf,.sr2,.raf,.orf,.rw2,.dng,.pef,.x3f,.3fr,.fff,.rwl,.gpr" multiple hidden>
   <input type="file" id="lut-input" accept=".cube,.3dl,.look" multiple hidden>
 
   <div id="workspace-row">
@@ -52,6 +52,13 @@
       <div class="fav-section-title">★ 收藏</div>
       <div id="fav-list" class="fav-list"><div class="fav-empty">暂无收藏</div></div>
     </div>
+  </div>
+
+  <div id="upload-progress-bar" hidden>
+    <div class="progress-track upload-track">
+      <div class="progress-fill upload-fill" id="upload-progress-fill"></div>
+    </div>
+    <span class="progress-text" id="upload-progress-text"></span>
   </div>
 
   <div id="progress-bar" hidden>

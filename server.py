@@ -19,6 +19,51 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 LUT_UPLOAD_DIR = DIR / 'lut-uploads'
 LUT_UPLOAD_DIR.mkdir(exist_ok=True)
 
+# RAW photo formats supported via macOS sips
+RAW_EXTENSIONS = {
+    '.cr2', '.cr3', '.crw',        # Canon
+    '.nef', '.nrw',                # Nikon
+    '.arw', '.srf', '.sr2',        # Sony
+    '.raf',                        # Fujifilm
+    '.orf',                        # Olympus
+    '.rw2',                        # Panasonic
+    '.dng',                        # Adobe / Leica / universal
+    '.pef',                        # Pentax
+    '.x3f',                        # Sigma
+    '.3fr', '.fff',                # Hasselblad
+    '.rwl',                        # Leica
+    '.gpr',                        # GoPro
+}
+
+def is_raw_file(path):
+    return Path(path).suffix.lower() in RAW_EXTENSIONS
+
+def raw_to_jpeg(raw_bytes, name, max_dim=1920):
+    """Convert RAW bytes to JPEG via dcraw + sips, return fid (JPEG filename)."""
+    ext = Path(name).suffix
+    temp_raw = UPLOAD_DIR / ('raw_' + uuid.uuid4().hex[:8] + ext)
+    temp_raw.write_bytes(raw_bytes)
+    # Step 1: dcraw decodes RAW -> PPM (half-res, AHD interpolation)
+    subprocess.run(
+        ['dcraw', '-w', '-h', '-q', '3', str(temp_raw)],
+        check=True, capture_output=True
+    )
+    ppm_path = temp_raw.with_suffix('.ppm')
+    if not ppm_path.exists():
+        raise FileNotFoundError(f'dcraw did not produce PPM output for {name}')
+    # Step 2: sips converts PPM -> JPEG with resize
+    fid = 'photo_' + uuid.uuid4().hex[:8] + '.jpg'
+    fpath = UPLOAD_DIR / fid
+    subprocess.run(
+        ['sips', '-s', 'format', 'jpeg', '-Z', str(max_dim), str(ppm_path), '--out', str(fpath)],
+        check=True, capture_output=True
+    )
+    # Cleanup
+    temp_raw.unlink()
+    ppm_path.unlink()
+    return fid
+
+
 def load_state():
     if STATE_FILE.exists():
         return json.loads(STATE_FILE.read_text())
@@ -78,10 +123,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 name = body.get('name', 'photo.jpg')
                 data_b64 = body.get('data', '')
                 raw = base64.b64decode(data_b64)
-                ext = Path(name).suffix or '.jpg'
-                fid = 'photo_' + uuid.uuid4().hex[:8] + ext
-                fpath = UPLOAD_DIR / fid
-                fpath.write_bytes(raw)
+                # RAW file -> convert via macOS sips
+                if is_raw_file(name):
+                    fid = raw_to_jpeg(raw, name)
+                else:
+                    fid = 'photo_' + uuid.uuid4().hex[:8] + (Path(name).suffix or '.jpg')
+                    (UPLOAD_DIR / fid).write_bytes(raw)
                 state = load_state()
                 state['photos'].append({'id': fid, 'name': name})
                 save_state(state)

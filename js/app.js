@@ -73,7 +73,7 @@
     maxPhotos: 5,
     previewWidth: 400,
     favorites: [],
-    showOriginal: true,
+    showOriginal: false,
   };
 
   
@@ -125,6 +125,27 @@
 
   function setStatus(m) { statusText.textContent = m; }
 
+  // Upload progress bar helpers
+  function showUploadProgress(total) {
+    const bar = $('upload-progress-bar');
+    const fill = $('upload-progress-fill');
+    const text = $('upload-progress-text');
+    bar.hidden = false;
+    fill.style.width = '0%';
+    text.textContent = '0 / ' + total;
+  }
+
+  function updateUploadProgress(done, total) {
+    const fill = $('upload-progress-fill');
+    const text = $('upload-progress-text');
+    fill.style.width = Math.round((done / total) * 100) + '%';
+    text.textContent = done + ' / ' + total;
+  }
+
+  function hideUploadProgress() {
+    $('upload-progress-bar').hidden = true;
+  }
+
   function loadImage(src) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -132,6 +153,28 @@
       img.onerror = () => reject(new Error('Cannot load: ' + src.slice(0, 60)));
       img.src = src;
     });
+  }
+
+  // RAW file extensions for server-side conversion via macOS sips
+  const RAW_EXTENSIONS = [
+    '.cr2', '.cr3', '.crw',    // Canon
+    '.nef', '.nrw',             // Nikon
+    '.arw', '.srf', '.sr2',     // Sony
+    '.raf',                     // Fujifilm
+    '.orf',                     // Olympus
+    '.rw2',                     // Panasonic
+    '.dng',                     // Adobe / Leica
+    '.pef',                     // Pentax
+    '.x3f',                     // Sigma
+    '.3fr', '.fff',             // Hasselblad
+    '.rwl',                     // Leica
+    '.gpr',                     // GoPro
+  ];
+
+  function isRawFile(file) {
+    const i = file.name.lastIndexOf('.');
+    if (i < 0) return false;
+    return RAW_EXTENSIONS.includes('.' + file.name.slice(i + 1).toLowerCase());
   }
 
   // ====================================================================
@@ -155,22 +198,50 @@
 }
 
 async function addPhotos(files) {
-    const valid = Array.from(files).filter(function (f) { return f.type.startsWith('image/'); });
+    const valid = Array.from(files).filter(function (f) {
+      return f.type.startsWith('image/') || isRawFile(f);
+    });
     const canAdd = state.maxPhotos - state.photos.length;
     if (canAdd <= 0) { toast('最多 ' + state.maxPhotos + ' 张照片', 'error'); return; }
     const batch = valid.slice(0, canAdd);
-    for (const file of batch) {
+    showUploadProgress(batch.length);
+    for (let fi = 0; fi < batch.length; fi++) {
+      const file = batch[fi];
       try {
-        const smallBlob = await downsample(file, 1920);
-        const id = await PhotoAPI.save(smallBlob);
-        const blobUrl = URL.createObjectURL(smallBlob);
-        const img = await loadImage(blobUrl);
+        let id, blobUrl, img;
+        if (isRawFile(file)) {
+          // RAW: upload full file to server for conversion
+          const b64 = await new Promise(function (resolve, reject) {
+            const r = new FileReader();
+            r.onload = function () { resolve(r.result.split(',')[1]); };
+            r.onerror = reject;
+            r.readAsDataURL(file);
+          });
+          const res = await fetch('/api/upload-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: file.name, data: b64 }),
+          });
+          const j = await res.json();
+          if (!j.ok) throw new Error(j.error || 'Upload failed');
+          id = j.id;
+          const serverUrl = 'photo-uploads/' + id;
+          img = await loadImage(serverUrl);
+          blobUrl = serverUrl;
+        } else {
+          const smallBlob = await downsample(file, 1920);
+          id = await PhotoAPI.save(smallBlob);
+          blobUrl = URL.createObjectURL(smallBlob);
+          img = await loadImage(blobUrl);
+        }
         state.photos.push({ id: id, name: file.name, img: img, url: blobUrl });
       } catch (e) {
         console.error('Upload err:', file.name, e);
         toast('上传失败: ' + file.name, 'error');
       }
+      updateUploadProgress(fi + 1, batch.length);
     }
+    hideUploadProgress();
     updatePhotoUI();
     rebuildGrid();
   }
@@ -638,7 +709,7 @@ const done = state.renderedRows.size;
       loadLuts(files);
     } else {
       // Drop outside zones
-      var imgs = files.filter(function (f) { return f.type.startsWith('image/'); });
+      var imgs = files.filter(function (f) { return f.type.startsWith('image/') || isRawFile(f); });
       var luts = files.filter(function (f) { return /\.(cube|3dl|look)$/i.test(f.name); });
       if (imgs.length) addPhotos(imgs);
       if (luts.length) loadLuts(luts);
