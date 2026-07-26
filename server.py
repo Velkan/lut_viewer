@@ -32,35 +32,35 @@ RAW_EXTENSIONS = {
     '.x3f',                        # Sigma
     '.3fr', '.fff',                # Hasselblad
     '.rwl',                        # Leica
-    '.gpr',                        # GoPro
+    # NOTE: GoPro GPR (.gpr) uses DNG 1.4 lossy JPEG compression,
+    # not supported by any open-source RAW decoder (dcraw/LibRaw).
+    # These files need Adobe DNG Converter or GoPro's own software.
 }
 
 def is_raw_file(path):
     return Path(path).suffix.lower() in RAW_EXTENSIONS
 
 def raw_to_jpeg(raw_bytes, name, max_dim=1920):
-    """Convert RAW bytes to JPEG via dcraw + sips, return fid (JPEG filename)."""
+    """Convert RAW bytes to JPEG using rawpy + Pillow, return fid."""
+    import rawpy
+    from PIL import Image
     ext = Path(name).suffix
     temp_raw = UPLOAD_DIR / ('raw_' + uuid.uuid4().hex[:8] + ext)
     temp_raw.write_bytes(raw_bytes)
-    # Step 1: dcraw decodes RAW -> PPM (half-res, AHD interpolation)
-    subprocess.run(
-        ['dcraw', '-w', '-h', '-q', '3', str(temp_raw)],
-        check=True, capture_output=True
-    )
-    ppm_path = temp_raw.with_suffix('.ppm')
-    if not ppm_path.exists():
-        raise FileNotFoundError(f'dcraw did not produce PPM output for {name}')
-    # Step 2: sips converts PPM -> JPEG with resize
-    fid = 'photo_' + uuid.uuid4().hex[:8] + '.jpg'
-    fpath = UPLOAD_DIR / fid
-    subprocess.run(
-        ['sips', '-s', 'format', 'jpeg', '-Z', str(max_dim), str(ppm_path), '--out', str(fpath)],
-        check=True, capture_output=True
-    )
-    # Cleanup
-    temp_raw.unlink()
-    ppm_path.unlink()
+    try:
+        with rawpy.imread(str(temp_raw)) as raw:
+            rgb = raw.postprocess(half_size=True, use_camera_wb=True,
+                                  no_auto_bright=True)
+        img = Image.fromarray(rgb)
+        img.thumbnail((max_dim, max_dim), Image.LANCZOS)
+        fid = 'photo_' + uuid.uuid4().hex[:8] + '.jpg'
+        fpath = UPLOAD_DIR / fid
+        img.save(fpath, 'JPEG', quality=90)
+    except Exception as e:
+        raise RuntimeError(f'Failed to decode RAW ({name}): {e}')
+    finally:
+        if temp_raw.exists():
+            temp_raw.unlink()
     return fid
 
 

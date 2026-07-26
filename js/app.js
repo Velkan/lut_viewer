@@ -168,7 +168,8 @@
     '.x3f',                     // Sigma
     '.3fr', '.fff',             // Hasselblad
     '.rwl',                     // Leica
-    '.gpr',                     // GoPro
+    // GoPro GPR (.gpr) is excluded — uses DNG 1.4 lossy JPEG
+    // compression unsupported by any open-source RAW decoder.
   ];
 
   function isRawFile(file) {

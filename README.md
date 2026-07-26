@@ -18,6 +18,7 @@
 ```bash
 git clone https://github.com/Velkan/lut_viewer.git
 cd lut_viewer
+pip3 install rawpy Pillow -i https://pypi.tuna.tsinghua.edu.cn/simple
 python3 server.py
 ```
 
